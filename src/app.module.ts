@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { APP_PIPE, APP_GUARD } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
@@ -8,6 +8,7 @@ import configuration from './config/configuration';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 import { AppService } from './app.service';
 import { AppController } from './app.controller';
@@ -20,9 +21,16 @@ import { ContactsModule } from './apis/contacts/contacts.module';
 import { CompaniesModule } from './apis/companies/companies.module';
 import { DealsModule } from './apis/deals/deals.module';
 import { ActivitiesModule } from './apis/activities/activities.module';
+import { EmailsModule } from './apis/emails/emails.module';
+import { NotificationsModule } from './apis/notifications/notifications.module';
+import { FilesModule } from './apis/files/files.module';
+import { AuditLogsModule } from './apis/audit-logs/audit-logs.module';
+import { HealthModule } from './apis/health/health.module';
+import { AppCacheModule } from './cache/app-cache.module';
 
 @Module({
   imports: [
+    EventEmitterModule.forRoot(), // ADD THIS. Must be at the top level.
     ConfigModule.forRoot({
       isGlobal: true,
       load: [configuration],
@@ -43,7 +51,13 @@ import { ActivitiesModule } from './apis/activities/activities.module';
     ContactsModule,
     CompaniesModule,
     DealsModule,
-    ActivitiesModule
+    ActivitiesModule,
+    EmailsModule,
+    NotificationsModule,
+    FilesModule,
+    AuditLogsModule,
+    HealthModule,
+    AppCacheModule
   ],
   controllers: [AppController],
   providers: [

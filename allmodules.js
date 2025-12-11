@@ -92,3 +92,5 @@
 // “Give me the ConfigModule, DatabaseModule, and TenantsModule first with PostgreSQL and TypeORM setup.”
 
 // Let’s build it step by step!
+
+// SES can via SNS notifications → we’ll add /emails/webhooks/ses later.

@@ -23,6 +23,7 @@ import {
 import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -40,6 +41,9 @@ export class AuthController {
     return this.authService.register(registerDto, ipAddress, userAgent);
   }
 
+  // Override the global limit for the login endpoint.
+  // This allows only 5 requests per minute to this specific endpoint.
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -80,6 +84,8 @@ export class AuthController {
     return this.authService.verifyEmail(verifyEmailDto);
   }
 
+  // You can apply it to other sensitive endpoints too.
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   @Public()
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)

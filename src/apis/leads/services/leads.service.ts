@@ -6,6 +6,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   CustomField,
   CustomFieldValue,
@@ -37,6 +38,7 @@ import {
   UpdateLeadDto,
   UpdateTagDto,
 } from '../dto';
+import { AppEvents, LeadAssignedEvent } from 'src/common/events/app-events';
 
 @Injectable()
 export class LeadsService {
@@ -55,6 +57,8 @@ export class LeadsService {
     private userRepository: Repository<User>,
     @InjectRepository(Tenant)
     private tenantRepository: Repository<Tenant>,
+
+    private eventEmitter: EventEmitter2,
   ) {}
 
   // ========== LEAD METHODS ==========
@@ -457,27 +461,58 @@ export class LeadsService {
   /**
    * Assign lead to user
    */
-  async assignToUser(tenantId: string, id: string, userId: string) {
-    const lead = await this.leadRepository.findOne({
-      where: { id, tenantId },
-    });
+  // async assignToUser(tenantId: string, id: string, userId: string) {
+  //   const lead = await this.leadRepository.findOne({
+  //     where: { id, tenantId },
+  //   });
 
-    if (!lead) {
-      throw new NotFoundException('Lead not found');
-    }
+  //   if (!lead) {
+  //     throw new NotFoundException('Lead not found');
+  //   }
+
+  //   const user = await this.userRepository.findOne({
+  //     where: { id: userId, tenantId },
+  //   });
+
+  //   if (!user) {
+  //     throw new NotFoundException('User not found');
+  //   }
+
+  //   lead.assignedToId = userId;
+  //   await this.leadRepository.save(lead);
+
+  //   return this.findOne(tenantId, id);
+  // }
+
+  async assignToUser(
+    tenantId: string,
+    leadId: string,
+    assignedToUserId: string,
+    assignedByUserId: string,
+  ) {
+    const lead = await this.leadRepository.findOne({
+      where: { id: leadId, tenantId },
+    });
+    if (!lead) throw new NotFoundException('Lead not found');
 
     const user = await this.userRepository.findOne({
-      where: { id: userId, tenantId },
+      where: { id: assignedToUserId, tenantId },
     });
+    if (!user) throw new NotFoundException('User not found');
 
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    lead.assignedToId = userId;
+    lead.assignedToId = assignedToUserId;
     await this.leadRepository.save(lead);
 
-    return this.findOne(tenantId, id);
+    // --- EMIT THE EVENT ---
+    const event = new LeadAssignedEvent();
+    event.tenantId = tenantId;
+    event.leadId = leadId;
+    event.assignedToUserId = assignedToUserId;
+    event.assignedByUserId = assignedByUserId; // The user performing the action
+    this.eventEmitter.emit(AppEvents.LEAD_ASSIGNED, event);
+    // --- END EMIT ---
+
+    return this.findOne(tenantId, leadId);
   }
 
   /**

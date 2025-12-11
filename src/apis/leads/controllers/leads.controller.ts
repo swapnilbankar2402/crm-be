@@ -32,6 +32,7 @@ import {
 } from '../dto';
 import { CurrentTenant, CurrentUser, Roles } from 'src/auth/decorators';
 import { LeadStatus } from 'src/common/entities';
+import { CacheResource, CacheTtl } from 'src/cache/cache.decorators';
 
 @ApiTags('Leads')
 @ApiBearerAuth()
@@ -55,6 +56,8 @@ export class LeadsController {
   }
 
   @Get()
+  @CacheResource('leads')
+  @CacheTtl(30)
   @Roles('admin', 'manager', 'sales-rep', 'support', 'viewer')
   @ApiOperation({ summary: 'Get all leads' })
   findAll(@CurrentTenant() tenantId: string, @Query() query: QueryLeadsDto) {
@@ -130,12 +133,21 @@ export class LeadsController {
   @Roles('admin', 'manager')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Assign lead to user' })
+  @ApiParam({ name: 'id', description: 'Lead ID' })
+  @ApiParam({ name: 'userId', description: 'User ID to assign to' })
+  @ApiResponse({ status: 200, description: 'Lead assigned successfully' })
   assignToUser(
     @CurrentTenant() tenantId: string,
     @Param('id') id: string,
-    @Param('userId') userId: string,
+    @Param('userId') assignedToUserId: string,
+    @CurrentUser('userId') assignedByUserId: string,
   ) {
-    return this.leadsService.assignToUser(tenantId, id, userId);
+    return this.leadsService.assignToUser(
+      tenantId,
+      id,
+      assignedToUserId,
+      assignedByUserId,
+    );
   }
 
   @Patch(':id/score')

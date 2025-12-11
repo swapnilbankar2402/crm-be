@@ -16,3 +16,10 @@ export * from './company.entity';
 export * from './deal.entity';
 export * from './activity.entity';
 export * from './deal-product.entity';
+export * from './email-template.entity';
+export * from './email-message.entity';
+export * from './email-link.entity';
+export * from './email-event.entity';
+export * from './email-recipient.entity';
+export * from './app-notification.entity';
+

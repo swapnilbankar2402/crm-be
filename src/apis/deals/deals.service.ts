@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   CreateDealDto,
   UpdateDealDto,
@@ -12,7 +13,20 @@ import {
   CloseDealDto,
   QueryDealsDto,
 } from './dto';
-import { Company, Contact, CustomField, CustomFieldValue, Deal, DealStatus, Lead, Pipeline, PipelineStage, Tenant, User } from 'src/common/entities';
+import {
+  Company,
+  Contact,
+  CustomField,
+  CustomFieldValue,
+  Deal,
+  DealStatus,
+  Lead,
+  Pipeline,
+  PipelineStage,
+  Tenant,
+  User,
+} from 'src/common/entities';
+import { AppEvents, AuditEvent } from 'src/common/events/app-events';
 
 @Injectable()
 export class DealsService {
@@ -37,6 +51,8 @@ export class DealsService {
     private customFieldRepository: Repository<CustomField>,
     @InjectRepository(CustomFieldValue)
     private customFieldValueRepository: Repository<CustomFieldValue>,
+
+    private eventEmitter: EventEmitter2,
   ) {}
 
   /**
@@ -137,7 +153,9 @@ export class DealsService {
       probability: dto.probability,
       status: dto.status || DealStatus.OPEN,
       priority: dto.priority,
-      expectedCloseDate: dto.expectedCloseDate ? new Date(dto.expectedCloseDate) : null,
+      expectedCloseDate: dto.expectedCloseDate
+        ? new Date(dto.expectedCloseDate)
+        : null,
       source: dto.source,
       tags: dto.tags || [],
       products: dto.products || [],
@@ -146,9 +164,25 @@ export class DealsService {
 
     const saved = await this.dealRepository.save(deal);
 
+    // --- EMIT AUDIT EVENT ---
+    const auditEvent = new AuditEvent();
+    auditEvent.tenantId = tenantId;
+    auditEvent.userId = userId;
+    auditEvent.action = 'deal.create';
+    auditEvent.entityType = 'Deal';
+    auditEvent.entityId = saved.id;
+    auditEvent.details = { name: saved.name, amount: saved.amount };
+    this.eventEmitter.emit(AppEvents.AUDIT_LOG_EVENT, auditEvent);
+    // --- END AUDIT ---
+
     // Handle custom fields
     if (dto.customFields) {
-      await this.handleCustomFields(tenantId, saved.id, dto.customFields, 'deal');
+      await this.handleCustomFields(
+        tenantId,
+        saved.id,
+        dto.customFields,
+        'deal',
+      );
     }
 
     return this.findOne(tenantId, saved.id);
@@ -248,14 +282,23 @@ export class DealsService {
           { closingAfter, closingBefore },
         );
       } else if (closingAfter) {
-        qb.andWhere('deal.expectedCloseDate >= :closingAfter', { closingAfter });
+        qb.andWhere('deal.expectedCloseDate >= :closingAfter', {
+          closingAfter,
+        });
       } else if (closingBefore) {
-        qb.andWhere('deal.expectedCloseDate <= :closingBefore', { closingBefore });
+        qb.andWhere('deal.expectedCloseDate <= :closingBefore', {
+          closingBefore,
+        });
       }
     }
 
     // Sorting
-    const validSortFields = ['createdAt', 'amount', 'expectedCloseDate', 'probability'];
+    const validSortFields = [
+      'createdAt',
+      'amount',
+      'expectedCloseDate',
+      'probability',
+    ];
     const sortField = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
     qb.orderBy(`deal.${sortField}`, sortOrder);
 
@@ -310,6 +353,8 @@ export class DealsService {
       relations: ['customFieldValues'],
     });
 
+    const oldDeal = { ...deal }; // Create a snapshot before changes
+
     if (!deal) {
       throw new NotFoundException('Deal not found');
     }
@@ -348,7 +393,10 @@ export class DealsService {
 
     if (dto.stageId) {
       const stage = await this.pipelineStageRepository.findOne({
-        where: { id: dto.stageId, pipelineId: dto.pipelineId || deal.pipelineId },
+        where: {
+          id: dto.stageId,
+          pipelineId: dto.pipelineId || deal.pipelineId,
+        },
       });
       if (!stage) throw new NotFoundException('Stage not found');
     }
@@ -365,7 +413,12 @@ export class DealsService {
 
     // Handle custom fields
     if (dto.customFields) {
-      await this.handleCustomFields(tenantId, deal.id, dto.customFields, 'deal');
+      await this.handleCustomFields(
+        tenantId,
+        deal.id,
+        dto.customFields,
+        'deal',
+      );
       deal.customFields = dto.customFields;
     }
 
@@ -391,17 +444,35 @@ export class DealsService {
     });
 
     const updated = await this.dealRepository.save(deal);
+
+    // --- EMIT AUDIT EVENT WITH CHANGES ---
+    const changes = this.getChanges(oldDeal, updated, [
+      'name',
+      'amount',
+      'status',
+      'stageId',
+      'ownerId',
+    ]);
+
+    if (changes.length > 0) {
+      const auditEvent = new AuditEvent();
+      auditEvent.tenantId = tenantId;
+      auditEvent.userId = 'user-id-from-request'; // You'll need to pass the user ID here
+      auditEvent.action = 'deal.update';
+      auditEvent.entityType = 'Deal';
+      auditEvent.entityId = updated.id;
+      auditEvent.changes = changes;
+      this.eventEmitter.emit(AppEvents.AUDIT_LOG_EVENT, auditEvent);
+    }
+    // --- END AUDIT ---
+
     return this.findOne(tenantId, updated.id);
   }
 
   /**
    * Move deal to different stage
    */
-  async moveToStage(
-    tenantId: string,
-    id: string,
-    dto: MoveDealStageDto,
-  ) {
+  async moveToStage(tenantId: string, id: string, dto: MoveDealStageDto) {
     const deal = await this.dealRepository.findOne({
       where: { id, tenantId },
       relations: ['stage'],
@@ -641,7 +712,8 @@ export class DealsService {
       const cfv = this.customFieldValueRepository.create({
         fieldId: field.id,
         dealId,
-        value: typeof value === 'object' ? JSON.stringify(value) : String(value),
+        value:
+          typeof value === 'object' ? JSON.stringify(value) : String(value),
       });
 
       valuesToSave.push(cfv);
@@ -722,13 +794,34 @@ export class DealsService {
           }
         : null,
       customFields: deal.customFieldValues
-        ? deal.customFieldValues.reduce((acc, cfv) => {
-            acc[cfv.field.key] = cfv.value;
-            return acc;
-          }, {} as Record<string, any>)
+        ? deal.customFieldValues.reduce(
+            (acc, cfv) => {
+              acc[cfv.field.key] = cfv.value;
+              return acc;
+            },
+            {} as Record<string, any>,
+          )
         : deal.customFields || {},
       createdAt: deal.createdAt,
       updatedAt: deal.updatedAt,
     };
+  }
+
+  private getChanges(
+    oldEntity: any,
+    newEntity: any,
+    fieldsToTrack: string[],
+  ): any[] {
+    const changes = [];
+    for (const field of fieldsToTrack) {
+      if (oldEntity[field] !== newEntity[field]) {
+        changes.push({
+          field,
+          oldValue: oldEntity[field],
+          newValue: newEntity[field],
+        });
+      }
+    }
+    return changes;
   }
 }

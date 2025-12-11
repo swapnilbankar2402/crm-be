@@ -3,9 +3,16 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // --- Tell NestJS to trust the proxy ---
+  // This allows it to use the X-Forwarded-For header to get the real client IP.
+  // The number '1' means it will trust the first hop (your direct proxy).
+  // In a more complex setup, you might need to adjust this.
+  app.set('trust proxy', 1);
 
   // Enable CORS
   app.enableCors();
@@ -35,6 +42,7 @@ async function bootstrap() {
     .addTag('Companies')
     .addTag('Deals')
     .addTag('Activities')
+    .addTag('Emails')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

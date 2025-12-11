@@ -1,16 +1,17 @@
 // src/common/entities/user.entity.ts
-import { 
-  Entity, 
-  Column, 
-  ManyToOne, 
-  JoinColumn, 
-  Index, 
-  OneToMany 
+import {
+  Entity,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  Index,
+  OneToMany,
 } from 'typeorm';
 import { BaseEntity } from './base.entity';
 import { Tenant } from './tenant.entity';
 import { UserRole } from './user-role.entity';
 import { Exclude } from 'class-transformer';
+import { NotificationType } from './app-notification.entity';
 
 export enum UserStatus {
   ACTIVE = 'active',
@@ -112,6 +113,15 @@ export class User extends BaseEntity {
   @Column({ type: 'boolean', default: false })
   smsNotifications: boolean;
 
+  @Column({ type: 'jsonb', nullable: true })
+  notificationSettings: {
+    [key in NotificationType]?: {
+      // This will now use the correct enum
+      in_app: boolean;
+      email: boolean;
+    };
+  };
+  
   // Additional Info
   @Column({ type: 'text', nullable: true })
   bio: string;
