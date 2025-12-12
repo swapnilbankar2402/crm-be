@@ -22,4 +22,7 @@ export * from './email-link.entity';
 export * from './email-event.entity';
 export * from './email-recipient.entity';
 export * from './app-notification.entity';
-
+export * from './plan.entity';
+export * from './tenant-subscription.entity';
+export * from './stripe-webhook-event.entity';
+export * from './webhook-event.entity';

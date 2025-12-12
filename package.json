@@ -21,7 +21,10 @@
     "migration:run": "npm run typeorm -- migration:run -d typeorm-cli.config.ts",
     "migration:revert": "npm run typeorm -- migration:revert -d typeorm-cli.config.ts",
     "schema:drop": "npm run typeorm -- schema:drop -d typeorm-cli.config.ts",
-    "seed": "ts-node -r tsconfig-paths/register src/database/seeds/main.seed.ts",
+    "seed": "ts-node -r tsconfig-paths/register src/seeder/seed.ts",
+    "seed:roles": "ts-node -r tsconfig-paths/register src/seeder/seed.ts --only=roles",
+    "seed:plans": "ts-node -r tsconfig-paths/register src/seeder/seed.ts --only=plans",
+    "seed:emails": "ts-node -r tsconfig-paths/register src/seeder/seed.ts --only=email-templates",
     "docker:up": "docker-compose -f docker/docker-compose.yml up -d",
     "docker:down": "docker-compose -f docker/docker-compose.yml down"
   },
@@ -71,7 +74,7 @@
     "redis": "^5.10.0",
     "reflect-metadata": "^0.2.1",
     "rxjs": "^7.8.1",
-    "stripe": "^14.12.0",
+    "stripe": "^14.25.0",
     "typeorm": "^0.3.19",
     "uuid": "^9.0.0",
     "winston": "^3.11.0"

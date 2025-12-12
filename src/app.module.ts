@@ -27,6 +27,9 @@ import { FilesModule } from './apis/files/files.module';
 import { AuditLogsModule } from './apis/audit-logs/audit-logs.module';
 import { HealthModule } from './apis/health/health.module';
 import { AppCacheModule } from './cache/app-cache.module';
+import { BillingModule } from './apis/billing/billing.module';
+import { AnalyticsModule } from './apis/analytics/analytics.module';
+import { WebhooksModule } from './apis/webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -57,7 +60,10 @@ import { AppCacheModule } from './cache/app-cache.module';
     FilesModule,
     AuditLogsModule,
     HealthModule,
-    AppCacheModule
+    AppCacheModule,
+    BillingModule,
+    AnalyticsModule,
+    WebhooksModule
   ],
   controllers: [AppController],
   providers: [

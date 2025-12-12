@@ -132,6 +132,7 @@ export class AuthService {
    */
   async validateUser(email: string, password: string): Promise<any> {
     const user = await this.userRepository.findOne({
+      relations : ['tenant'],
       where: { email },
       select: ['id', 'email', 'password', 'firstName', 'lastName', 'tenantId', 'status', 'emailVerified'],
     });
@@ -198,6 +199,7 @@ export class AuthService {
         firstName: user.firstName,
         lastName: user.lastName,
         tenantId: user.tenantId,
+        tenantSlug: user.tenant.slug,
         roles,
         emailVerified: user.emailVerified,
       },

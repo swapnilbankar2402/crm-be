@@ -4,6 +4,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { json, raw } from 'body-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -13,6 +14,9 @@ async function bootstrap() {
   // The number '1' means it will trust the first hop (your direct proxy).
   // In a more complex setup, you might need to adjust this.
   app.set('trust proxy', 1);
+
+  // Stripe webhook needs RAW
+  app.use('/billing/webhook/stripe', raw({ type: 'application/json' }));
 
   // Enable CORS
   app.enableCors();
@@ -38,7 +42,7 @@ async function bootstrap() {
     .addTag('Roles')
     .addTag('Leads')
     .addTag('Pipelines')
-    .addTag('Contacts') 
+    .addTag('Contacts')
     .addTag('Companies')
     .addTag('Deals')
     .addTag('Activities')

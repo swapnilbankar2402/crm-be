@@ -17,6 +17,15 @@ export enum EmailRecipientStatus {
   REJECTED = 'rejected',
 }
 
+export enum EmailRecipientSendStatus {
+  QUEUED = 'queued',
+  SENT = 'sent',
+  FAILED = 'failed',
+  DELIVERED = 'delivered',
+  BOUNCED = 'bounced',
+  COMPLAINED = 'complained',
+}
+
 @Entity('email_recipients')
 export class EmailRecipient extends BaseEntity {
   @Index()
@@ -41,7 +50,24 @@ export class EmailRecipient extends BaseEntity {
   @Column({ type: 'varchar', length: 30 })
   trackingToken: string; // nanoid, unique per recipient
 
-  @Column({ type: 'enum', enum: EmailRecipientStatus, default: EmailRecipientStatus.PENDING })
+  // ✅ ADD THIS
+  @Column({
+    type: 'enum',
+    enum: EmailRecipientSendStatus,
+    default: EmailRecipientSendStatus.QUEUED,
+  })
+  sendStatus: EmailRecipientSendStatus;
+
+  // ✅ ADD THIS (SES messageId or SMTP messageId)
+  @Index()
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  providerMessageId?: string | null;
+
+  @Column({
+    type: 'enum',
+    enum: EmailRecipientStatus,
+    default: EmailRecipientStatus.PENDING,
+  })
   status: EmailRecipientStatus;
 
   // Tracking summary counters
